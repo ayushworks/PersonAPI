@@ -1,4 +1,4 @@
-# person-http4s-doobie
+# person api
 A sample project of a microservice using [http4s](http://http4s.org/), [doobie](http://tpolecat.github.io/doobie/),
 and [circe](https://github.com/circe/circe).
 
