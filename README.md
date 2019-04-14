@@ -9,28 +9,30 @@ The end points are:
 
 Method | Url          | Description
 ------ | -----------  | -----------
-GET    | /person      | Returns all people.
 GET    | /person/{id} | Returns the person for the specified id, 404 when no such person present with this id.
 POST   | /person      | Creates a person, give as body JSON with the fistname, lastname and gender, returns a 201 with the created person.
 PUT    | /person/{id} | Updates an existing person, give as body JSON with the firstname, lastname and gender, returns a 200 with the updated person when a person is present with the specified id, 404 otherwise.
 DELETE | /person/{id} | Deletes the person with the specified id, 404 when no person is present with this id.
+GET    | /person/tweets/{id} | Retreives the 10 latest tweets of the person, 404 when the person is not present
 
 Here are some examples on how to use the microservice with curl, assuming it runs on the default port 8080:
 
 Create a person:
-```curl -X POST --header "Content-Type: application/json" --data '{"firstname": "peter", "lastname": "parker", "gender": "male"}' http://localhost:8080/person```
+```curl -X POST --header "Content-Type: application/json" --data '{"firstname": "peter", "lastname": "parker", "gender": "male", "screenName": "spiderman"}' http://localhost:8080/person```
 
-Get all person:
-```curl http://localhost:8080/person```
 
 Get a single person (assuming the id of the person is 1):
 ```curl http://localhost:8080/person/1```
 
 Update a person (assuming the id of the person is 1):
-```curl -X PUT --header "Content-Type: application/json" --data '{"firstname": "spiderman", "lastname": "", "gender":"male"}' http://localhost:8080/person/1```
+```curl -X PUT --header "Content-Type: application/json" --data '{"firstname": "spiderman", "lastname": "", "gender":"male", "screenName": "spiderman"}' http://localhost:8080/person/1```
 
 Delete a person (assuming the id of the person is 1):
 ```curl -X DELETE http://localhost:8080/person/1```
+
+
+Get a person tweets(assuming the id of the person is 1):
+```curl http://localhost:8080/person/tweets/1```
 
 ## http4s
 [http4s](http://http4s.org/) is used as the HTTP layer. http4s provides streaming and functional HTTP for Scala.

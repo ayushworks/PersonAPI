@@ -16,7 +16,14 @@ package object config {
                       user: String,
                       password: String)
 
-  case class Config(serverConfig: ServerConfig, dbConfig: DBConfig)
+  case class TwitterConfig(consumerKey: String,
+                           consumerSecret: String,
+                           accessKey: String,
+                           accessSecret: String)
+
+  case class Config(serverConfig: ServerConfig,
+                    dbConfig: DBConfig,
+                    twitterConfig: TwitterConfig)
 
   object Config {
 

@@ -1,63 +1,68 @@
 package person.repository
 
 import cats.effect.IO
-import doobie.Meta
+import doobie.free.connection.ConnectionIO
 import doobie.util.transactor.Transactor
-import fs2.Stream
-import person.model.model.{Gender, Person, PersonNotFoundError}
+import person.model.model._
 import doobie.implicits._
+import cats.implicits._
+import doobie.util.meta.Meta
+import PersonQueries._
+import TwitterInfoQueries._
 
 /**
   * @author Ayush Mittal
   */
 class PersonRepository(transactor: Transactor[IO]) {
 
-  private implicit val importanceMeta: Meta[Gender] =
-    Meta[String].xmap(Gender.unsafeFromString, _.value)
-
-  def getPeople: Stream[IO, Person] =
-    sql"SELECT id, first_name, last_name, gender from person"
-      .query[Person]
-      .stream
-      .transact(transactor)
-
-  def getPerson(id: Long): IO[Either[PersonNotFoundError.type, Person]] =
-    sql"SELECT id, first_name, last_name, gender from person where id = $id"
-      .query[Person]
-      .option
-      .transact(transactor)
-      .map {
-        case Some(person) => Right(person)
-        case None         => Left(PersonNotFoundError)
-      }
-
-  def createPerson(person: Person): IO[Person] =
-    sql"INSERT into person (first_name, last_name, gender) values (${person.firstName}, ${person.lastName}, ${person.gender})".update
-      .withUniqueGeneratedKeys[Long]("id")
-      .transact(transactor)
-      .map { id =>
-        person.copy(id = Some(id))
-      }
-
-  def deletePerson(id: Long): IO[Either[PersonNotFoundError.type, Unit]] =
-    sql"DELETE from person where id = $id".update.run.transact(transactor).map {
-      affectedRows =>
-        affectedRows match {
-          case 0 => Left(PersonNotFoundError)
-          case _ => Right(())
-        }
+  def create(person: PersonRequest): IO[PersonData] = {
+    val composedIO = for {
+      userId <- addPerson(person)
+      _ <- addTwitterInfo(person, userId)
+    } yield userId
+    composedIO.transact(transactor).map { id =>
+      PersonData(id, person)
     }
+  }
 
-  def updatePerson(
-      id: Long,
-      person: Person): IO[Either[PersonNotFoundError.type, Person]] =
-    sql"UPDATE person SET first_name = ${person.firstName}, last_name = ${person.lastName}, gender = ${person.gender} where id = $id".update.run
-      .transact(transactor)
-      .map { affectedRows =>
-        affectedRows match {
-          case 0 => Left(PersonNotFoundError)
-          case _ => Right(person.copy(id = Some(id)))
-        }
-      }
+  def find(id: Long): IO[Either[NotFoundError.type, PersonData]] = {
+    val composedIO = for {
+      person <- findPerson(id)
+      twitterInfo <- person.traverseFilter[ConnectionIO, PersonTwitterInfo](p =>
+        findTwitterInfo(p.id.get))
+    } yield (person, twitterInfo)
+
+    composedIO.transact(transactor).map {
+      case (Some(person), Some(twitterInfo)) =>
+        Right(PersonData.fromPerson(person, twitterInfo))
+      case _ => Left(NotFoundError)
+    }
+  }
+
+  def update(id: Long, personRequest: PersonRequest) = {
+    val composedIO = for {
+      updatePersonCount <- updatePerson(id, personRequest)
+      updatedTwitterInfoCount <- updateTwitterInfo(id, personRequest)
+    } yield (updatePersonCount, updatedTwitterInfoCount)
+
+    composedIO.transact(transactor).map {
+      case (0, _) => Left(NotFoundError)
+      case (_, 0) => Left(NotFoundError)
+      case _      => Right(PersonData(id, personRequest))
+    }
+  }
+
+  def delete(id: Long): IO[Either[NotFoundError.type, Unit]] = {
+    val composedIO = for {
+      deletedTwitterInfoCount <- deleteTwitterInfo(id)
+      deletedPersonCount <- deletePerson(id)
+    } yield (deletedPersonCount, deletedTwitterInfoCount)
+
+    composedIO.transact(transactor).map {
+      case (0, _) => Left(NotFoundError)
+      case (_, 0) => Left(NotFoundError)
+      case _      => Right(())
+    }
+  }
 
 }

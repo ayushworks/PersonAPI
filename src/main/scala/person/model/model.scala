@@ -19,10 +19,52 @@ package object model {
     }
   }
 
-  case class Person(id: Option[Long],
+  case class Person(id: Option[Long] = None,
                     firstName: String,
                     lastName: String,
                     gender: Gender)
 
-  case object PersonNotFoundError
+  case class PersonTwitterInfo(id: Option[Long] = None,
+                               screenName: String,
+                               userId: Long)
+
+  case class PersonRequest(firstName: String,
+                           lastName: String,
+                           gender: Gender,
+                           screenName: String)
+
+  case class PersonResponse(id: Long,
+                            firstName: String,
+                            lastName: String,
+                            gender: Gender,
+                            screenName: String)
+
+  object PersonResponse {
+    def fromPersonData(personData: PersonData) =
+      PersonResponse(
+        personData.id,
+        personData.personRequest.firstName,
+        personData.personRequest.lastName,
+        personData.personRequest.gender,
+        personData.personRequest.screenName
+      )
+  }
+
+  type Tweet = String
+
+  case class PersonData(id: Long, personRequest: PersonRequest)
+
+  object PersonData {
+    def fromPerson(person: Person,
+                   personTwitterInfo: PersonTwitterInfo): PersonData =
+      PersonData(person.id.get,
+                 PersonRequest(person.firstName,
+                               person.lastName,
+                               person.gender,
+                               personTwitterInfo.screenName))
+  }
+
+  case class PersonTweets(screenName: String, tweets: List[Tweet])
+
+  case object NotFoundError
 }
